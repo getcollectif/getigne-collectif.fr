@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "@/context/auth";
+import { useAuth } from "@/context/auth";
 import { AppSettingsProvider, useAppSettings } from "@/hooks/useAppSettings";
 import { CookieConsentProvider } from "@/context/CookieConsentContext";
 import CookieBanner from "@/components/CookieBanner";
@@ -98,6 +99,7 @@ function AdminProtectedOutlet() {
 
 function AppRouter() {
   const { settings, loading } = useAppSettings();
+  const { isAdmin } = useAuth();
   const showJoin = settings.modules.supportCommittee || settings.modules.membershipForm;
 
   const guardedElement = (enabled: boolean, element: React.ReactNode) =>
@@ -118,8 +120,8 @@ function AppRouter() {
       <Route path={AppRoutes.EVENT_DETAIL} element={guardedElement(settings.modules.agenda, <EventDetailPage />)} />
       <Route path={AppRoutes.NEIGHBORHOOD_EVENTS} element={guardedElement(settings.modules.agenda, <NeighborhoodEventsPage />)} />
       <Route path={AppRoutes.NEIGHBORHOOD_KIT} element={guardedElement(settings.modules.agenda, <NeighborhoodKitPage />)} />
-      <Route path={AppRoutes.TEAM_DETAIL} element={<TeamPage />} />
-      <Route path={AppRoutes.TEAM} element={<TeamPage />} />
+      <Route path={AppRoutes.TEAM_DETAIL} element={guardedElement(settings.modules.team || isAdmin, <TeamPage />)} />
+      <Route path={AppRoutes.TEAM} element={guardedElement(settings.modules.team || isAdmin, <TeamPage />)} />
       <Route path={AppRoutes.COMMITTEES} element={guardedElement(settings.modules.committees, <CommitteePage />)} />
       <Route path={AppRoutes.COMMITTEE_DETAIL} element={guardedElement(settings.modules.committees, <CommitteePage />)} />
       <Route path={AppRoutes.PROGRAM} element={guardedElement(settings.modules.program, <ProgramPage />)} />

@@ -118,6 +118,13 @@ const Navbar = () => {
           </Link>
         </li>
       )}
+      {settings.modules.team && (
+        <li>
+          <Link to={Routes.TEAM} className={isActive(Routes.TEAM)}>
+            L'équipe
+          </Link>
+        </li>
+      )}
       {settings.modules.blog && (
         <li>
           <Link to={Routes.NEWS} className={isActive(Routes.NEWS)}>

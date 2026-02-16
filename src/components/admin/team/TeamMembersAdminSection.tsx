@@ -163,30 +163,17 @@ const TeamMembersAdminSection = ({ showHeader = true }: TeamMembersAdminSectionP
               </div>
               <CardContent className="p-4">
                 <h3 className="font-semibold text-lg mb-1">{member.name}</h3>
-                {(member.profession || member.role) && (
+                {member.role && (
                   <div className="flex flex-wrap gap-2 mb-2">
-                    {member.profession && (
-                      <Badge
-                        variant="outline"
-                        className="text-xs text-brand-600 border-brand-200 rounded-[4px]"
-                      >
-                        {member.profession}
-                      </Badge>
-                    )}
-                    {member.role && (
-                      <Badge
-                        variant="secondary"
-                        className="text-xs text-brand rounded-[4px]"
-                      >
-                        {member.role}
-                      </Badge>
-                    )}
+                    <Badge
+                      variant="secondary"
+                      className="text-xs text-brand rounded-[4px]"
+                    >
+                      {member.role}
+                    </Badge>
                   </div>
                 )}
-                <p className="text-sm text-gray-600 line-clamp-2 mb-4">
-                  {member.bio}
-                </p>
-                <div className="flex gap-2">
+                <div className="flex gap-2 mt-4">
                   <Button
                     variant="outline"
                     size="sm"

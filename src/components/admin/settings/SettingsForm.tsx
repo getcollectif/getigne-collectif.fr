@@ -37,6 +37,7 @@ export default function SettingsForm() {
   const [isUploading, setIsUploading] = useState(false);
   const moduleFields: { name: Path<SettingsFormValues>; label: string }[] = [
     { name: 'modules.program', label: 'Programme' },
+    { name: 'modules.team', label: 'Équipe' },
     { name: 'modules.supportCommittee', label: 'Comité de soutien' },
     { name: 'modules.membershipForm', label: "Formulaire d'adhésion" },
     { name: 'modules.agenda', label: 'Agenda' },
@@ -624,6 +625,41 @@ export default function SettingsForm() {
                 </FormItem>
               )}
             />
+
+            <div className="grid md:grid-cols-2 gap-6">
+              <FormField
+                control={form.control}
+                name="content.teamPageTitle"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Titre page Équipe</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Découvrez la liste {site.name}" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      Vous pouvez utiliser le placeholder <code>{'{site.name}'}</code>.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="content.teamPageSubtitle"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Sous-titre page Équipe</FormLabel>
+                    <FormControl>
+                      <Input placeholder="27 hommes et femmes engagés pour la commune" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      Vous pouvez utiliser les placeholders <code>{'{team.count}'}</code> et <code>{'{site.name}'}</code>.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <FormField
               control={form.control}

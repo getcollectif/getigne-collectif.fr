@@ -9,6 +9,7 @@ export enum SiteSettingsSection {
 
 export enum ModuleKey {
   Program = 'program',
+  Team = 'team',
   SupportCommittee = 'supportCommittee',
   MembershipForm = 'membershipForm',
   Agenda = 'agenda',
@@ -67,6 +68,10 @@ export type ContentSettings = {
   heroTitleEmphasis: string;
   heroTitleSuffix: string;
   heroSubtitle: string;
+  teamPageTitle: string;
+  teamPageSubtitle: string;
+  teamFeaturedCount: number;
+  teamFeaturedLabel: string;
   footerAbout: string;
   contactEmail: string;
   contactPhone: string;
@@ -85,6 +90,7 @@ export type MapSettings = {
 
 export type ModuleSettings = {
   program: boolean;
+  team: boolean;
   supportCommittee: boolean;
   membershipForm: boolean;
   agenda: boolean;
@@ -100,6 +106,10 @@ export type SiteSettings = {
   content: ContentSettings;
   map: MapSettings;
   modules: ModuleSettings;
+};
+
+export type DeepPartial<T> = {
+  [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];
 };
 
 export type SiteSettingsByKey = {
@@ -140,6 +150,10 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
     heroTitleSuffix: 'ça vous tente ?',
     heroSubtitle:
       "Déployons la force du collectif pour rendre notre commune plus engagée et au service de toutes et tous.",
+    teamPageTitle: 'Découvrez la liste {site.name}',
+    teamPageSubtitle: '{team.count} hommes et femmes engagés pour la commune',
+    teamFeaturedCount: 2,
+    teamFeaturedLabel: 'Tête de liste',
     footerAbout:
       'Collectif citoyen engagé pour les élections municipales depuis 2020 à Gétigné.\nEnsemble, construisons une commune plus dynamique, engagée et démocratique.',
     contactEmail: 'contact@CHANGER_ICI.fr',
@@ -156,6 +170,7 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   },
   modules: {
     program: true,
+    team: true,
     supportCommittee: true,
     membershipForm: true,
     agenda: true,
@@ -200,6 +215,10 @@ const contentSchema = z.object({
   heroTitleEmphasis: z.string().min(1),
   heroTitleSuffix: z.string().min(1),
   heroSubtitle: z.string().min(1),
+  teamPageTitle: z.string().min(1),
+  teamPageSubtitle: z.string().min(1),
+  teamFeaturedCount: z.number().int().min(0).max(20),
+  teamFeaturedLabel: z.string().default(''),
   footerAbout: z.string().min(1),
   contactEmail: z.string().min(1),
   contactPhone: z.string().min(1),
@@ -218,6 +237,7 @@ const mapSchema = z.object({
 
 const modulesSchema = z.object({
   program: z.boolean(),
+  team: z.boolean(),
   supportCommittee: z.boolean(),
   membershipForm: z.boolean(),
   agenda: z.boolean(),
@@ -251,7 +271,7 @@ export const siteSettingsSections = [
 
 export function mergeSiteSettings(
   defaults: SiteSettings,
-  overrides: Partial<SiteSettings>
+  overrides: DeepPartial<SiteSettings>
 ): SiteSettings {
   return {
     branding: {
@@ -319,18 +339,45 @@ export function normalizeSiteSettingsValue<K extends SiteSettingsSection>(
 export function normalizeSiteSettings(
   rows: { key: string; value: unknown }[]
 ): SiteSettings {
-  const overrides: Partial<SiteSettings> = {};
+  const overrides: DeepPartial<SiteSettings> = {};
 
   rows.forEach((row) => {
     if (!row?.key) return;
 
     if (isSiteSettingsSection(row.key)) {
       const section = row.key as SiteSettingsSection;
-      overrides[section] = normalizeSiteSettingsValue(
-        section,
-        row.value,
-        DEFAULT_SITE_SETTINGS[section]
-      );
+      if (section === SiteSettingsSection.Branding) {
+        overrides.branding = normalizeSiteSettingsValue(
+          section,
+          row.value,
+          DEFAULT_SITE_SETTINGS.branding
+        );
+        return;
+      }
+      if (section === SiteSettingsSection.Content) {
+        overrides.content = normalizeSiteSettingsValue(
+          section,
+          row.value,
+          DEFAULT_SITE_SETTINGS.content
+        );
+        return;
+      }
+      if (section === SiteSettingsSection.Map) {
+        overrides.map = normalizeSiteSettingsValue(
+          section,
+          row.value,
+          DEFAULT_SITE_SETTINGS.map
+        );
+        return;
+      }
+      if (section === SiteSettingsSection.Modules) {
+        overrides.modules = normalizeSiteSettingsValue(
+          section,
+          row.value,
+          DEFAULT_SITE_SETTINGS.modules
+        );
+        return;
+      }
       return;
     }
 
@@ -410,7 +457,7 @@ function normalizeBrandingValue(value: unknown): BrandingSettings {
   });
 
   const parsed = brandingSchema.safeParse(merged.branding);
-  return parsed.success ? parsed.data : DEFAULT_SITE_SETTINGS.branding;
+  return parsed.success ? (parsed.data as BrandingSettings) : DEFAULT_SITE_SETTINGS.branding;
 }
 
 function normalizeContentValue(value: unknown): ContentSettings {
@@ -420,7 +467,7 @@ function normalizeContentValue(value: unknown): ContentSettings {
   const raw = value as Partial<ContentSettings>;
   const merged = mergeSiteSettings(DEFAULT_SITE_SETTINGS, { content: raw });
   const parsed = contentSchema.safeParse(merged.content);
-  return parsed.success ? parsed.data : DEFAULT_SITE_SETTINGS.content;
+  return parsed.success ? (parsed.data as ContentSettings) : DEFAULT_SITE_SETTINGS.content;
 }
 
 function hexToHsl(value: string): string | null {

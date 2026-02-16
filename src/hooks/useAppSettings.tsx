@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../integrations/supabase/client';
 import {
   applySiteTheme,
+  DeepPartial,
   DEFAULT_SITE_SETTINGS,
   normalizeSiteSettings,
   SiteSettings,
@@ -81,7 +82,7 @@ export const AppSettingsProvider: React.FC<{ children: React.ReactNode }> = ({ c
         );
       if (error) throw error;
 
-      const merged = mergeSiteSettings(settings, { [key]: value } as Partial<SiteSettings>);
+      const merged = mergeSiteSettings(settings, { [key]: value } as DeepPartial<SiteSettings>);
       setSettings(merged);
       return true;
     } catch (err) {
