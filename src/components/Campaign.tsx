@@ -76,7 +76,7 @@ const Campaign = () => {
                   </div>
                   <div>
                     <h4 className="font-medium">Nous organisons des événements réguliers</h4>
-                    <p className="text-sm text-brand-700">Des rencontres, ateliers et événements pour échanger avec les habitants de Gétigné.</p>
+                    <p className="text-sm text-brand-700">Des rencontres, ateliers et événements pour échanger avec les habitants de {settings.branding.city}.</p>
                   </div>
                 </div>
               </div>

@@ -45,6 +45,10 @@ export type BrandingSettings = {
   name: string;
   slogan: string;
   logoUrl: string;
+  /** Favicon (onglet navigateur). Si vide, le logo principal est utilisé. */
+  faviconUrl: string;
+  /** Logo du pied de page. Si vide, le logo principal est utilisé. */
+  footerLogoUrl: string;
   city: string;
   /** Couleur de fin du gradient (complément du dominant), ex. #06b6d4 */
   gradientEnd: string;
@@ -110,6 +114,8 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
     name: 'Gétigné Collectif',
     slogan: 'Élections municipales 2026',
     logoUrl: '/images/getigne-collectif-logo.png',
+    faviconUrl: '',
+    footerLogoUrl: '',
     city: 'Gétigné',
     gradientEnd: '#06b6d4',
     colors: {
@@ -133,14 +139,14 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
     heroTitleEmphasis: 'dynamique, engagée et démocratique',
     heroTitleSuffix: 'ça vous tente ?',
     heroSubtitle:
-      "Déployons la force du collectif pour faire de Gétigné une commune plus engagée, au service de toutes et tous.",
+      "Déployons la force du collectif pour rendre notre commune plus engagée et au service de toutes et tous.",
     footerAbout:
       'Collectif citoyen engagé pour les élections municipales depuis 2020 à Gétigné.\nEnsemble, construisons une commune plus dynamique, engagée et démocratique.',
-    contactEmail: 'contact@getigne-collectif.fr',
-    contactPhone: '06 66 77 75 20',
-    contactAddress: '19 le bois de la roche\n44190 Gétigné',
+    contactEmail: 'contact@CHANGER_ICI.fr',
+    contactPhone: '06 xx xx xx xx',
+    contactAddress: 'xx rue de la ville\nxx xx xx xx xx',
     siteDescription:
-      'Collectif citoyen engagé pour les élections municipales depuis 2020 à Gétigné.',
+      'Liste citoyenne et participative engagée pour les élections municipales.',
     membershipText:
       "L'adhésion annuelle est à prix libre : chaque personne donne selon ses moyens. Vous pouvez également faire un don libre pour soutenir nos actions.",
   },
@@ -168,6 +174,8 @@ const brandingSchema = z.object({
   name: z.string().min(1),
   slogan: z.string().min(1),
   logoUrl: z.string().min(1),
+  faviconUrl: z.string().default(''),
+  footerLogoUrl: z.string().default(''),
   city: z.string().min(1),
   gradientEnd: colorSchema.default('#06b6d4'),
   colors: z.object({

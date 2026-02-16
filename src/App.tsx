@@ -15,6 +15,9 @@ import { Analytics } from "@vercel/analytics/react"
 import Index from "./pages/Index";
 import LoadingSpinner from "@/components/ui/loading";
 import { AuthenticatedRoute, AdminRoute } from "@/components/auth/ProtectedRoutes";
+import { SetupGuard } from "@/components/SetupGuard";
+import { SetupRedirect } from "@/components/SetupRedirect";
+import Favicon from "@/components/Favicon";
 
 // Lazy load admin pages for better performance
 const AdminDashboardPage = lazy(() => import("./pages/admin/AdminDashboardPage"));
@@ -73,6 +76,7 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const DynamicPage = lazy(() => import("./pages/DynamicPage"));
 const LiftPage = lazy(() => import("./pages/LiftPage"));
 const ProcurationPage = lazy(() => import("./pages/ProcurationPage"));
+const SetupWizardPage = lazy(() => import("./pages/SetupWizardPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -104,7 +108,9 @@ function AppRouter() {
   }
 
   return (
-    <Routes>
+    <>
+      <SetupRedirect />
+      <Routes>
       <Route path={AppRoutes.HOME} element={<Index />} />
       <Route path={AppRoutes.NEWS} element={guardedElement(settings.modules.blog, <NewsPage />)} />
       <Route path={AppRoutes.NEWS_DETAIL} element={guardedElement(settings.modules.blog, <NewsDetailPage />)} />
@@ -112,6 +118,7 @@ function AppRouter() {
       <Route path={AppRoutes.EVENT_DETAIL} element={guardedElement(settings.modules.agenda, <EventDetailPage />)} />
       <Route path={AppRoutes.NEIGHBORHOOD_EVENTS} element={guardedElement(settings.modules.agenda, <NeighborhoodEventsPage />)} />
       <Route path={AppRoutes.NEIGHBORHOOD_KIT} element={guardedElement(settings.modules.agenda, <NeighborhoodKitPage />)} />
+      <Route path={AppRoutes.TEAM_DETAIL} element={<TeamPage />} />
       <Route path={AppRoutes.TEAM} element={<TeamPage />} />
       <Route path={AppRoutes.COMMITTEES} element={guardedElement(settings.modules.committees, <CommitteePage />)} />
       <Route path={AppRoutes.COMMITTEE_DETAIL} element={guardedElement(settings.modules.committees, <CommitteePage />)} />
@@ -132,6 +139,13 @@ function AppRouter() {
       } />
       <Route path={AppRoutes.LIFT} element={<LiftPage />} />
       <Route path={AppRoutes.PROXY} element={guardedElement(settings.modules.proxy, <ProcurationPage />)} />
+
+      {/* Wizard de configuration (après premier admin) : réservé aux admins ou au premier passage */}
+      <Route path={AppRoutes.SETUP_WIZARD} element={
+        <AuthenticatedRoute>
+          <SetupWizardPage />
+        </AuthenticatedRoute>
+      } />
       
       {/* Admin Routes - All protected by AdminRoute via nested routes */}
       <Route element={<AdminProtectedOutlet />}>
@@ -218,7 +232,8 @@ function AppRouter() {
       {/* Dynamic pages - this should be last */}
       <Route path={AppRoutes.DYNAMIC_PAGE} element={<DynamicPage />} />
       <Route path={AppRoutes.NOT_FOUND} element={<NotFound />} />
-    </Routes>
+      </Routes>
+    </>
   );
 }
 
@@ -234,10 +249,13 @@ function App() {
                 <Analytics />
                 <Toaster />
                 <Sonner />
+                <Favicon />
                 <BrowserRouter>
-                  <Suspense fallback={<LoadingSpinner />}>
-                  <AppRouter />
-                  </Suspense>
+                  <SetupGuard>
+                    <Suspense fallback={<LoadingSpinner />}>
+                      <AppRouter />
+                    </Suspense>
+                  </SetupGuard>
                 </BrowserRouter>
                 <CookieBanner />
               </AppSettingsProvider>

@@ -24,6 +24,8 @@ dist-ssr
 *.sw?
 
 supabase/.temp/
+prod_data.sql
+schema.sql
 
 .yarn/
 .qodo

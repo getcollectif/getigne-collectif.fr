@@ -306,33 +306,6 @@ const AdminElectoralListPage = () => {
     return age;
   };
 
-  // Validation de l'âge minimum pour la liste électorale
-  const validateMinimumAge = (memberId: string): boolean => {
-    const member = allMembers.find(m => m.id === memberId);
-    if (!member) return false;
-
-    if (!member.birth_date) {
-      toast({
-        title: 'Date de naissance manquante',
-        description: 'Ce membre doit avoir une date de naissance renseignée pour être sur la liste électorale.',
-        variant: 'destructive',
-      });
-      return false;
-    }
-
-    const age = calculateAge(member.birth_date);
-    if (age === null || age < 18) {
-      toast({
-        title: 'Âge insuffisant',
-        description: `${member.name} doit avoir au moins 18 ans pour être sur la liste électorale (âge actuel: ${age || 'inconnu'} ans).`,
-        variant: 'destructive',
-      });
-      return false;
-    }
-
-    return true;
-  };
-
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
     const activeData = event.active.data.current;
@@ -381,11 +354,6 @@ const AdminElectoralListPage = () => {
           description: 'Aucune liste électorale active.',
           variant: 'destructive',
         });
-        return;
-      }
-
-      // Vérifier l'âge minimum
-      if (!validateMinimumAge(memberId)) {
         return;
       }
 
@@ -610,11 +578,6 @@ const AdminElectoralListPage = () => {
           description: 'Aucune liste électorale active.',
           variant: 'destructive',
         });
-        return;
-      }
-
-      // Vérifier l'âge minimum
-      if (!validateMinimumAge(memberId)) {
         return;
       }
 

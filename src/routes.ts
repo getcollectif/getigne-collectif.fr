@@ -12,6 +12,7 @@ export enum Routes {
   NEIGHBORHOOD_EVENTS = "/cafes-de-quartier",
   NEIGHBORHOOD_KIT = "/cafes-de-quartier/kit",
   TEAM = "/equipe",
+  TEAM_DETAIL = "/equipe/:slug",
   COMMITTEES = "/comites",
   COMMITTEE_DETAIL = "/comites/:id",
   PROGRAM = "/programme",
@@ -23,6 +24,9 @@ export enum Routes {
   LEGAL = "/mentions-legales",
   SITEMAP = "/plan-du-site",
   LIFT = "/lift",
+
+  // Configuration initiale (premier admin)
+  SETUP_WIZARD = "/setup/wizard",
 
   // Routes d'authentification
   AUTH = "/auth",
@@ -89,6 +93,7 @@ export enum Routes {
 export const generateRoutes = {
   newsDetail: (slug: string) => `/news/${slug}`,
   eventDetail: (slug: string) => `/agenda/${slug}`,
+  teamMemberDetail: (slug: string) => `/equipe/${slug}`,
   committeeDetail: (id: string) => `/comites/${id}`,
   adminNewsEdit: (id: string) => `/admin/news/${id}/edit`,
   adminNewsPreview: (slug: string) => `/admin/news/preview/${slug}`,

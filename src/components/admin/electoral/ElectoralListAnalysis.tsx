@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Wrapper, Status } from '@googlemaps/react-wrapper';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend } from 'recharts';
-import { MapPin, Users, TrendingUp, AlertCircle } from 'lucide-react';
+import { MapPin, Users, TrendingUp, AlertCircle, Copy, Check } from 'lucide-react';
 import JSZip from 'jszip';
 import type { ElectoralPosition, ElectoralListMemberWithDetails } from '@/types/electoral.types';
+import { useToast } from '@/components/ui/use-toast';
 
 interface ElectoralListAnalysisProps {
   positions: ElectoralPosition[];
@@ -230,7 +232,7 @@ const Map: React.FC<{
 
             // Sauvegarder les nouvelles coordonnées
             try {
-              await onMarkerDragEnd(position.member.team_member_id, newLat, newLng);
+              await onMarkerDragEnd(position.member.team_member.id, newLat, newLng);
             } catch (error) {
               console.error('Erreur lors de la sauvegarde des coordonnées:', error);
               // Revenir à la position précédente en cas d'erreur
@@ -284,6 +286,8 @@ const render = (status: Status) => {
 const ElectoralListAnalysis = ({ positions, onOpenEditModal, onUpdateMemberCoordinates, getExpectedGenderForPosition }: ElectoralListAnalysisProps) => {
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_TOKEN;
   const center = { lat: 47.07758188386521, lng: -1.2481294869163988 }; // Coordonnées exactes de Gétigné
+  const { toast } = useToast();
+  const [copied, setCopied] = useState(false);
 
   // Calculer les statistiques
   const calculateStats = () => {
@@ -480,16 +484,42 @@ const ElectoralListAnalysis = ({ positions, onOpenEditModal, onUpdateMemberCoord
     // Identifier les fiches incomplètes
     const incompleteProfiles = assignedMembers
       .map(m => {
-        const missingFields: string[] = [];
-        if (!m.team_member.birth_date) missingFields.push('Date de naissance');
-        if (!m.team_member.gender || m.team_member.gender === 'autre') missingFields.push('Genre');
-        if (!m.team_member.address) missingFields.push('Adresse');
-        if (!m.team_member.education_level) missingFields.push('Niveau d\'étude');
-        if (!m.team_member.max_engagement_level) missingFields.push('Niveau d\'engagement max');
+        const missingFields: Array<{ label: string; severity: 'required' | 'optional' }> = [];
+        const memberAge = calculateAge(m.team_member.birth_date);
+
+        // Critères obligatoires (rouge)
+        if (!m.team_member.identity_card_url) {
+          missingFields.push({ label: "Carte d'identité", severity: 'required' });
+        }
+        if (!m.team_member.cerfa_14997_04_url) {
+          missingFields.push({ label: 'Cerfa 14997-04', severity: 'required' });
+        }
+        if (!m.team_member.commune_attachment_proof_url) {
+          missingFields.push({ label: "Preuve d'attache avec la commune", severity: 'required' });
+        }
+        if (!m.team_member.profession || !m.team_member.profession.trim()) {
+          missingFields.push({ label: 'Profession', severity: 'required' });
+        }
+        if (!m.team_member.bio || !m.team_member.bio.trim()) {
+          missingFields.push({ label: 'Biographie', severity: 'required' });
+        }
+        if (memberAge === null) {
+          missingFields.push({ label: 'Age (date de naissance)', severity: 'required' });
+        } else if (memberAge < 18) {
+          missingFields.push({ label: 'Age (18 ans minimum)', severity: 'required' });
+        }
+
+        // Critères complémentaires (orange)
+        if (!m.team_member.address) {
+          missingFields.push({ label: 'Adresse', severity: 'optional' });
+        }
+        if (!m.team_member.education_level) {
+          missingFields.push({ label: "Niveau d'étude", severity: 'optional' });
+        }
         
         return {
           member: m,
-          position: positions.find(p => p.member?.id === m.id)?.position || 0,
+          position: positions.find(p => p.member?.team_member.id === m.team_member.id)?.position || 0,
           missingFields,
         };
       })
@@ -528,6 +558,83 @@ const ElectoralListAnalysis = ({ positions, onOpenEditModal, onUpdateMemberCoord
   };
 
   const stats = calculateStats();
+
+  const buildMissingInfoText = () => {
+    const explosiveLabels = new Set([
+      "Carte d'identité",
+      'Cerfa 14997-04',
+      "Preuve d'attache avec la commune",
+      'Biographie',
+      'Age (date de naissance)',
+      'Age (18 ans minimum)',
+    ]);
+
+    const lines: string[] = [];
+    lines.push('Recapitulatif des pieces obligatoires - Liste electorale');
+    lines.push('');
+
+    const explosiveIssues = stats.incompleteProfiles
+      .map((profile) => ({
+        ...profile,
+        explosiveMissing: profile.missingFields.filter((field) => explosiveLabels.has(field.label)),
+      }))
+      .filter((profile) => profile.explosiveMissing.length > 0)
+      .sort((a, b) => a.position - b.position);
+
+    if (explosiveIssues.length > 0) {
+      lines.push('Personnes avec pieces/age manquants:');
+      explosiveIssues.forEach((profile) => {
+        lines.push(`- Position ${profile.position} - ${profile.member.team_member.name}`);
+        profile.explosiveMissing.forEach((field) => {
+          lines.push(`  - 🚨 ${field.label}`);
+        });
+      });
+      lines.push('');
+    } else {
+      lines.push('Aucun element obligatoire manquant.');
+      lines.push('');
+    }
+
+    const incompleteByMemberId = new Set(
+      explosiveIssues.map((profile) => profile.member.team_member.id)
+    );
+    const assignedMembers = positions
+      .filter((p) => p.member !== null)
+      .map((p) => ({ position: p.position, member: p.member! }))
+      .sort((a, b) => a.position - b.position);
+
+    const fullyCompleteMembers = assignedMembers.filter(
+      ({ member }) => !incompleteByMemberId.has(member.team_member.id)
+    );
+
+    if (fullyCompleteMembers.length > 0) {
+      lines.push('Personnes tout niquel:');
+      fullyCompleteMembers.forEach(({ position, member }) => {
+        lines.push(`- ✅ Position ${position} - ${member.team_member.name}`);
+      });
+    }
+
+    return lines.join('\n').trim();
+  };
+
+  const handleCopyMissingInfo = async () => {
+    try {
+      await navigator.clipboard.writeText(buildMissingInfoText());
+      setCopied(true);
+      toast({
+        title: 'Copie reussie',
+        description: 'Le recapitulatif des informations manquantes a ete copie.',
+      });
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch (error) {
+      console.error('Erreur lors de la copie:', error);
+      toast({
+        title: 'Erreur',
+        description: 'Impossible de copier le recapitulatif.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   const COLORS = [
     '#d97706', // brand
@@ -568,10 +675,22 @@ const ElectoralListAnalysis = ({ positions, onOpenEditModal, onUpdateMemberCoord
         {/* État de la liste - Première position */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              État de la liste
-            </CardTitle>
+            <div className="flex items-start justify-between gap-3">
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                État de la liste
+              </CardTitle>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={handleCopyMissingInfo}
+                title="Copier les informations manquantes"
+                aria-label="Copier les informations manquantes"
+              >
+                {copied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -615,11 +734,14 @@ const ElectoralListAnalysis = ({ positions, onOpenEditModal, onUpdateMemberCoord
                 <AlertCircle className="h-4 w-4 text-yellow-600" />
                 <span className="text-sm font-medium">Fiches incomplètes</span>
               </div>
+              <p className="text-xs text-muted-foreground mb-3">
+                Rouge : obligatoire, Orange : recommande
+              </p>
               {stats.incompleteProfiles.length > 0 ? (
                 <div className="space-y-2 max-h-64 overflow-y-auto">
                   {stats.incompleteProfiles.map((profile) => (
                     <div
-                      key={profile.member.id}
+                      key={profile.member.team_member.id}
                       className="border rounded-lg p-2 space-y-1 cursor-pointer hover:bg-gray-50 transition-colors"
                       onClick={() => onOpenEditModal(profile.member)}
                     >
@@ -629,10 +751,14 @@ const ElectoralListAnalysis = ({ positions, onOpenEditModal, onUpdateMemberCoord
                       <div className="flex flex-wrap gap-1">
                         {profile.missingFields.map((field) => (
                           <span
-                            key={field}
-                            className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded"
+                            key={`${profile.member.team_member.id}-${field.label}`}
+                            className={`text-xs px-2 py-0.5 rounded ${
+                              field.severity === 'required'
+                                ? 'bg-red-100 text-red-800'
+                                : 'bg-yellow-100 text-yellow-800'
+                            }`}
                           >
-                            {field}
+                            {field.label}
                           </span>
                         ))}
                       </div>

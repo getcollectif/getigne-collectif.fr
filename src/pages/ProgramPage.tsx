@@ -786,7 +786,8 @@ const ProgramPage = () => {
         programItems,
         (message) => {
           toast.loading(message, { id: toastId });
-        }
+        },
+        { city: settings.branding.city, name: settings.branding.name }
       );
       toast.success('PDF généré avec succès !', { id: toastId });
     } catch (error) {
@@ -880,8 +881,8 @@ const ProgramPage = () => {
     return (
       <HelmetProvider>
         <Helmet>
-          <title>Programme - Objectif 2026 | Gétigné Collectif</title>
-          <meta name="description" content="Découvrez le programme politique de Gétigné Collectif pour 2026" />
+          <title>Programme - Objectif 2026 | {settings.branding.name}</title>
+          <meta name="description" content={`Découvrez le programme politique de ${settings.branding.name} pour 2026`} />
         </Helmet>
         
         <div className="min-h-screen bg-gradient-to-br from-brand-50 to-brand-100">
@@ -901,7 +902,7 @@ const ProgramPage = () => {
                   <p className="text-xl text-brand-700 max-w-4xl mx-auto leading-relaxed mb-6">
                     L'équipe programme finalise actuellement la synthèse des travaux de nos 5 commissions thématiques, 
                     composées d'une vingtaine de personnes qui travaillent depuis plus d'un an sur des propositions concrètes 
-                    pour l'avenir de Gétigné.
+                    pour l'avenir de {settings.branding.city}.
                   </p>
                   
                   {/* Aperçu du timing */}
@@ -981,8 +982,8 @@ const ProgramPage = () => {
   return (
     <HelmetProvider>
       <Helmet>
-        <title>Programme - Objectif 2026 | Gétigné Collectif</title>
-        <meta name="description" content="Découvrez le programme politique de Gétigné Collectif pour 2026" />
+        <title>Programme - Objectif 2026 | {settings.branding.name}</title>
+        <meta name="description" content={`Découvrez le programme politique de ${settings.branding.name} pour 2026`} />
       </Helmet>
       
       <div className="min-h-screen bg-gradient-to-br from-brand-50 to-brand-100">
@@ -1156,7 +1157,7 @@ const ProgramPage = () => {
                 <div className="max-w-6xl mx-auto flex items-center gap-2 text-white">
                   <Target className="w-4 h-4" />
                   <span className="font-bold text-sm md:text-base">
-                    {shouldDisplayCounter ? `Nos ${validatedPointsCount} mesures pour Gétigné` : 'Nos mesures pour Gétigné'}
+                    {shouldDisplayCounter ? `Nos ${validatedPointsCount} mesures pour ${settings.branding.city}` : `Nos mesures pour ${settings.branding.city}`}
                   </span>
                 </div>
               </div>
@@ -1171,10 +1172,10 @@ const ProgramPage = () => {
                   <span>Notre programme détaillé</span>
                 </div>
                 <h2 className="text-3xl md:text-4xl lg:text-5xl font-extrabold text-white mb-3 md:mb-4 px-4">
-                  {shouldDisplayCounter ? `Nos ${validatedPointsCount} mesures pour Gétigné` : 'Nos mesures pour Gétigné'}
+                  {shouldDisplayCounter ? `Nos ${validatedPointsCount} mesures pour ${settings.branding.city}` : `Nos mesures pour ${settings.branding.city}`}
                 </h2>
                 <p className="text-base md:text-lg lg:text-xl text-white/90 max-w-3xl mx-auto px-4">
-                  Découvrez les mesures concrètes que nous proposons pour Gétigné, classées par thématique. Réagissez en commentant et participez à l'élaboration de notre projet !
+                  Découvrez les mesures concrètes que nous proposons pour {settings.branding.city}, classées par thématique. Réagissez en commentant et participez à l'élaboration de notre projet !
                 </p>
               </div>
             </div>

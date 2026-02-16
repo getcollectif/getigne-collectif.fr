@@ -113,14 +113,7 @@ const Navbar = () => {
       </li>
       {showProgramLink && (
         <li>
-          <Link
-            to={Routes.PROGRAM}
-            className={
-              isActive(Routes.PROGRAM)
-                ? 'text-brand'
-                : 'text-brand-700 group-hover:text-brand transition-colors duration-200'
-            }
-          >
+          <Link to={Routes.PROGRAM} className={isActive(Routes.PROGRAM)}>
             Le programme
           </Link>
         </li>

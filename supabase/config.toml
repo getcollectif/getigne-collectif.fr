@@ -32,8 +32,41 @@ verify_jwt = false
 [functions.discord-member-handler]
 verify_jwt = false
 
+[functions.setup-status]
+verify_jwt = false
+[functions.create-first-admin]
+verify_jwt = false
+
 [functions.check-helloasso-membership]
 verify_jwt = true
 
 [functions.delete-user]
 verify_jwt = true
+
+[functions.geocode-address]
+verify_jwt = true
+
+# Buckets Storage : créés automatiquement au `supabase start` (local).
+# En projet hébergé : `make supabase_ensure_buckets` (ou créer à la main dans le Dashboard).
+[storage.buckets.site-assets]
+public = true
+[storage.buckets.avatars]
+public = true
+[storage.buckets.news_images]
+public = true
+[storage.buckets.program_files]
+public = true
+[storage.buckets."team-members"]
+public = true
+[storage.buckets.public]
+public = true
+[storage.buckets.event_images]
+public = true
+[storage.buckets.cms_assets]
+public = true
+[storage.buckets."external-directory"]
+public = true
+[storage.buckets."program-files"]
+public = true
+[storage.buckets."team-member-documents"]
+public = false

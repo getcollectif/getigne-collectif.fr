@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 import {
@@ -20,13 +20,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, Upload, X, MapPin } from 'lucide-react';
+import { Loader2, Upload, X, MapPin, FileText, CircleCheck, CircleX } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type {
   ElectoralListMemberWithDetails,
   ThematicRole,
 } from '@/types/electoral.types';
 import { geocodeAddress } from '@/utils/geocoding';
+import { OutputData } from '@editorjs/editorjs';
+import EditorJSComponent from '@/components/EditorJSComponent';
 
 interface EditMemberModalProps {
   open: boolean;
@@ -35,6 +37,43 @@ interface EditMemberModalProps {
   thematicRoles: ThematicRole[];
   onSuccess: () => void;
 }
+type AdminDocumentField =
+  | 'identity_card_url'
+  | 'cerfa_14997_04_url'
+  | 'commune_attachment_proof_url';
+
+const EMPTY_EDITOR_DATA: OutputData = {
+  time: Date.now(),
+  blocks: [],
+  version: '2.28.0',
+};
+
+const parseBioToEditorData = (bio: string | null | undefined): OutputData => {
+  if (!bio || !bio.trim()) return { ...EMPTY_EDITOR_DATA, time: Date.now() };
+  try {
+    const parsed = JSON.parse(bio);
+    if (parsed && typeof parsed === 'object' && Array.isArray(parsed.blocks)) {
+      return parsed as OutputData;
+    }
+  } catch {
+    // fallback texte simple
+  }
+  return {
+    time: Date.now(),
+    blocks: [{ type: 'paragraph', data: { text: bio } }],
+    version: '2.28.0',
+  };
+};
+
+const ADMIN_DOCUMENTS_BUCKET = 'team-member-documents';
+const ADMIN_DOCUMENT_FIELDS = [
+  { key: 'identity_card_url' as const, label: "Carte d'identité" },
+  { key: 'cerfa_14997_04_url' as const, label: 'Cerfa 14997-04' },
+  {
+    key: 'commune_attachment_proof_url' as const,
+    label: "Preuve d'attache avec la commune",
+  },
+];
 
 const EditMemberModal = ({
   open,
@@ -46,9 +85,11 @@ const EditMemberModal = ({
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [dragOverField, setDragOverField] = useState<AdminDocumentField | null>(null);
   const [geocoding, setGeocoding] = useState(false);
   const [geocodingResult, setGeocodingResult] = useState<{ formattedAddress: string; latitude: number; longitude: number } | null>(null);
   const [geocodingError, setGeocodingError] = useState<string | null>(null);
+  const [bioContent, setBioContent] = useState<OutputData>({ ...EMPTY_EDITOR_DATA });
   
   // Team member form data
   const [formData, setFormData] = useState({
@@ -59,6 +100,9 @@ const EditMemberModal = ({
     email: '',
     phone: '',
     national_elector_number: '',
+    identity_card_url: '',
+    cerfa_14997_04_url: '',
+    commune_attachment_proof_url: '',
     gender: '',
     birth_date: '',
     address: '',
@@ -83,6 +127,9 @@ const EditMemberModal = ({
         email: member.team_member.email || '',
         phone: member.team_member.phone || '',
         national_elector_number: member.team_member.national_elector_number || '',
+        identity_card_url: member.team_member.identity_card_url || '',
+        cerfa_14997_04_url: member.team_member.cerfa_14997_04_url || '',
+        commune_attachment_proof_url: member.team_member.commune_attachment_proof_url || '',
         gender: member.team_member.gender || '',
         birth_date: member.team_member.birth_date || '',
         address: member.team_member.address || '',
@@ -92,6 +139,7 @@ const EditMemberModal = ({
         max_engagement_level: member.team_member.max_engagement_level || '',
         vignoble_arrival_year: member.team_member.vignoble_arrival_year?.toString() || '',
       });
+      setBioContent(parseBioToEditorData(member.team_member.bio));
 
       // Réinitialiser les états de géocodification
       setGeocodingResult(null);
@@ -222,6 +270,95 @@ const EditMemberModal = ({
     setFormData({ ...formData, image: '' });
   };
 
+  const uploadAdminDocumentFile = async (
+    file: File,
+    field: AdminDocumentField
+  ) => {
+    if (!file || !member) return;
+
+    setUploading(true);
+    try {
+      if (formData[field]) {
+        await supabase.storage.from(ADMIN_DOCUMENTS_BUCKET).remove([formData[field]]);
+      }
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${member.team_member_id}/${field}/${Date.now()}-${Math.random()
+        .toString(36)
+        .substring(2)}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from(ADMIN_DOCUMENTS_BUCKET)
+        .upload(fileName, file, { upsert: true });
+      if (uploadError) throw uploadError;
+
+      setFormData((prev) => ({ ...prev, [field]: fileName }));
+      toast({
+        title: 'Document téléchargé',
+        description: 'Le document a été enregistré.',
+      });
+    } catch (error) {
+      console.error('Erreur lors du téléchargement du document:', error);
+      toast({
+        title: 'Erreur',
+        description: 'Impossible de téléverser le document.',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploading(false);
+      setDragOverField(null);
+    }
+  };
+
+  const uploadAdminDocument = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    field: AdminDocumentField
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await uploadAdminDocumentFile(file, field);
+    e.target.value = '';
+  };
+
+  const removeAdminDocument = (
+    field: AdminDocumentField
+  ) => {
+    setFormData((prev) => ({ ...prev, [field]: '' }));
+  };
+
+  const handleDocumentDrop = async (
+    e: React.DragEvent<HTMLDivElement>,
+    field: AdminDocumentField
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverField(null);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    await uploadAdminDocumentFile(file, field);
+  };
+
+  const openAdminDocument = async (path: string) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from(ADMIN_DOCUMENTS_BUCKET)
+        .createSignedUrl(path, 60);
+      if (error) throw error;
+      window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      console.error("Erreur lors de l'ouverture du document:", error);
+      toast({
+        title: 'Erreur',
+        description: "Impossible d'ouvrir le document.",
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleBioChange = useCallback((data: OutputData) => {
+    setBioContent(data);
+  }, []);
+
   const toggleRole = (roleId: string) => {
     const newSelectedRoles = new Set(selectedRoles);
     if (newSelectedRoles.has(roleId)) {
@@ -255,14 +392,20 @@ const EditMemberModal = ({
 
     setLoading(true);
     try {
+      const serializedBio =
+        bioContent.blocks.length > 0 ? JSON.stringify(bioContent) : null;
+
       // 1. Mettre à jour le team_member
       const updateData: Record<string, any> = {
         name: formData.name.trim(),
         profession: formData.profession?.trim() || null,
-        bio: formData.bio?.trim() || null,
+        bio: serializedBio,
         email: formData.email?.trim() || null,
         phone: formData.phone?.trim() || null,
         national_elector_number: formData.national_elector_number?.trim() || null,
+        identity_card_url: formData.identity_card_url?.trim() || null,
+        cerfa_14997_04_url: formData.cerfa_14997_04_url?.trim() || null,
+        commune_attachment_proof_url: formData.commune_attachment_proof_url?.trim() || null,
         gender: formData.gender || null,
         birth_date: formData.birth_date || null,
         address: formData.address?.trim() || null,
@@ -408,7 +551,7 @@ const EditMemberModal = ({
                     }
                   />
                   <p className="text-sm text-muted-foreground mt-1">
-                    Obligatoire pour être sur la liste électorale (18 ans minimum)
+                    Optionnelle. L'âge est utilise comme critere de conformite dans l'analyse.
                   </p>
                 </div>
 
@@ -584,15 +727,14 @@ const EditMemberModal = ({
 
                 <div>
                   <Label htmlFor="bio">Biographie</Label>
-                  <Textarea
-                    id="bio"
-                    value={formData.bio}
-                    onChange={(e) =>
-                      setFormData({ ...formData, bio: e.target.value })
-                    }
-                    placeholder="Présentez-vous en quelques mots..."
-                    rows={4}
-                  />
+                  <div className="mt-2">
+                    <EditorJSComponent
+                      value={bioContent}
+                      onChange={handleBioChange}
+                      placeholder="Présentez-vous en quelques mots... (gras, italique, listes...)"
+                      className="max-h-[420px]"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -643,6 +785,86 @@ const EditMemberModal = ({
                     <span className="text-sm">Téléchargement en cours...</span>
                   </div>
                 )}
+
+                <div className="mt-6 space-y-3">
+                  <Label>Démarches administratives</Label>
+                  {ADMIN_DOCUMENT_FIELDS.map((doc) => {
+                    const currentPath = formData[doc.key];
+                    return (
+                      <div
+                        key={doc.key}
+                        className={`rounded-lg border p-3 space-y-2 transition-colors ${
+                          dragOverField === doc.key ? 'border-brand bg-brand/5' : ''
+                        }`}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setDragOverField(doc.key);
+                        }}
+                        onDragEnter={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setDragOverField(doc.key);
+                        }}
+                        onDragLeave={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setDragOverField((prev) => (prev === doc.key ? null : prev));
+                        }}
+                        onDrop={(e) => handleDocumentDrop(e, doc.key)}
+                      >
+                        <div className="flex items-center gap-2">
+                          {currentPath ? (
+                            <CircleCheck className="h-4 w-4 text-green-600" />
+                          ) : (
+                            <CircleX className="h-4 w-4 text-red-600" />
+                          )}
+                          <p className="text-sm font-medium">{doc.label}</p>
+                        </div>
+                        {currentPath ? (
+                          <div className="flex items-center justify-between gap-2">
+                            <button
+                              type="button"
+                              onClick={() => openAdminDocument(currentPath)}
+                              className="text-sm text-brand underline truncate text-left"
+                            >
+                              {currentPath.split('/').pop() || 'Voir le document'}
+                            </button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => removeAdminDocument(doc.key)}
+                            >
+                              <X className="h-4 w-4 mr-1" />
+                              Retirer
+                            </Button>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">Aucun document téléversé</p>
+                        )}
+                        <Label
+                          htmlFor={`modal-upload-${doc.key}`}
+                          className="inline-flex items-center gap-2 cursor-pointer text-sm text-brand hover:text-brand/80"
+                        >
+                          <FileText className="h-4 w-4" />
+                          Téléverser
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Glissez-deposez un fichier ici ou cliquez sur "Televerser".
+                        </p>
+                        <Input
+                          id={`modal-upload-${doc.key}`}
+                          type="file"
+                          accept=".pdf,.png,.jpg,.jpeg,.webp"
+                          className="hidden"
+                          disabled={uploading}
+                          onChange={(e) => uploadAdminDocument(e, doc.key)}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </TabsContent>

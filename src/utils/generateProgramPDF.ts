@@ -484,6 +484,12 @@ async function addImageWithPagination(
   }
 }
 
+/** Options de marque pour le PDF (ville et nom du collectif) */
+export type ProgramPDFBranding = {
+  city: string;
+  name: string;
+};
+
 /**
  * Génère un PDF complet du programme avec texte sélectionnable
  */
@@ -491,8 +497,11 @@ export async function generateProgramPDF(
   programGeneral: Tables<'program_general'> | null,
   flagshipProjects: ProgramFlagshipProject[],
   programItems: Array<Tables<'program_items'> & { program_points: ProgramPoint[] }>,
-  onProgress?: (message: string) => void
+  onProgress?: (message: string) => void,
+  branding?: ProgramPDFBranding
 ): Promise<void> {
+  const city = branding?.city ?? 'Gétigné';
+  const siteName = branding?.name ?? 'Gétigné Collectif';
   try {
     onProgress?.('Préparation du contenu...');
 
@@ -714,8 +723,8 @@ export async function generateProgramPDF(
       pdf.setTextColor(0, 0, 0);
       pdf.setFont('helvetica', 'bold');
       const measuresTitleTOC = shouldDisplayCounter 
-        ? `Nos ${validatedPointsCount} mesures pour Gétigné`
-        : 'Nos mesures pour Gétigné';
+        ? `Nos ${validatedPointsCount} mesures pour ${city}`
+        : `Nos mesures pour ${city}`;
       currentY = addTextWithPagination(pdf, measuresTitleTOC, {
         fontSize: 11,
         y: currentY + 5,
@@ -888,8 +897,8 @@ export async function generateProgramPDF(
     pdf.setTextColor(52, 177, 144); // rgba(52, 177, 144, 0.9) - brand
     pdf.setFont('helvetica', 'bold');
     const measuresTitle = shouldDisplayCounter 
-      ? `Nos ${validatedPointsCount} mesures pour Gétigné`
-      : 'Nos mesures pour Gétigné';
+      ? `Nos ${validatedPointsCount} mesures pour ${city}`
+      : `Nos mesures pour ${city}`;
     currentY = addTextWithPagination(pdf, measuresTitle, {
       fontSize: 20,
       y: currentY + 10,
@@ -1174,7 +1183,7 @@ export async function generateProgramPDF(
       pdf.setTextColor(107, 114, 128);
       pdf.setFont('helvetica', 'normal');
       pdf.text(
-        `Programme - Objectif 2026 | Gétigné Collectif - Page ${i}/${totalPages}`,
+        `Programme - Objectif 2026 | ${siteName} - Page ${i}/${totalPages}`,
         pageWidth / 2,
         pageHeight - 10,
         { align: 'center' }

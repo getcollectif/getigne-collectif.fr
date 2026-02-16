@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { supabase } from "@/integrations/supabase/client";
 import { DynamicIcon } from '@/components/ui/dynamic-icon';
+import { useAppSettings } from '@/hooks/useAppSettings';
 
 const ProgramItem = ({ icon, title, description, delay, image }) => {
   const [isVisible, setIsVisible] = useState(false);
@@ -73,6 +74,7 @@ const ProgramItem = ({ icon, title, description, delay, image }) => {
 };
 
 const Program = () => {
+  const { settings } = useAppSettings();
   const [programItems, setProgramItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -129,7 +131,7 @@ const Program = () => {
           </span>
           <h2 className="text-4xl font-bold mt-4 mb-6">Des propositions concrètes pour notre commune</h2>
           <p className="text-brand-700 text-lg">
-            Découvrez nos engagements et propositions pour faire de Gétigné une commune où il fait bon vivre, 
+            Découvrez nos engagements et propositions pour faire de {settings.branding.city} une commune où il fait bon vivre, 
             juste, dynamique et tournée vers l'avenir.
           </p>
         </div>
@@ -155,7 +157,7 @@ const Program = () => {
               className="w-24 h-auto"
             />
             <div>
-              <h3 className="text-lg font-medium mb-1">Gétigné au sein de l'aggloh!</h3>
+              <h3 className="text-lg font-medium mb-1">{settings.branding.city} au sein de l'aggloh!</h3>
               <p className="text-brand-700 text-sm mb-2">
                 Découvrez nos propositions pour une meilleure coopération intercommunale.
               </p>

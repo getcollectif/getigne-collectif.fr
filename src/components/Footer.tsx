@@ -64,7 +64,7 @@ const Footer = () => {
           <div>
             <div className="mb-4">
               <img
-                src={settings.branding.logoUrl}
+                src={settings.branding.footerLogoUrl || settings.branding.logoUrl}
                 alt={settings.branding.name}
                 className="h-14 mb-4"
               />

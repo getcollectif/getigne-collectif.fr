@@ -19,12 +19,24 @@ export type ElectoralMemberRoleUpdate = Database["public"]["Tables"]["electoral_
 
 export type TeamMember = Database["public"]["Tables"]["team_members"]["Row"] & {
   national_elector_number: string | null;
+  slug: string;
+  identity_card_url: string | null;
+  cerfa_14997_04_url: string | null;
+  commune_attachment_proof_url: string | null;
 };
 export type TeamMemberInsert = Database["public"]["Tables"]["team_members"]["Insert"] & {
   national_elector_number?: string | null;
+  slug?: string;
+  identity_card_url?: string | null;
+  cerfa_14997_04_url?: string | null;
+  commune_attachment_proof_url?: string | null;
 };
 export type TeamMemberUpdate = Database["public"]["Tables"]["team_members"]["Update"] & {
   national_elector_number?: string | null;
+  slug?: string;
+  identity_card_url?: string | null;
+  cerfa_14997_04_url?: string | null;
+  commune_attachment_proof_url?: string | null;
 };
 
 // Types étendus avec jointures

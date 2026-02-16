@@ -68,7 +68,7 @@ Voici les informations que je peux déjà vous communiquer :
 
 📍 LOCALISATION :
 • Adresse : [Votre adresse complète]
-• Quartier/secteur : [Précisez le secteur de Gétigné]
+• Quartier/secteur : [Précisez votre secteur]
 
 📅 DATES POSSIBLES :
 • Date souhaitée : [Ex: Samedi 15 février 2025]

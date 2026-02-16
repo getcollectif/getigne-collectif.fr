@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
@@ -14,14 +14,60 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, Upload, X, MapPin } from 'lucide-react';
+import { Loader2, Upload, X, MapPin, FileText, CircleCheck, CircleX } from 'lucide-react';
 import { Routes } from '@/routes';
 import type { TeamMember, TeamMemberInsert, TeamMemberUpdate } from '@/types/electoral.types';
 import { geocodeAddress } from '@/utils/geocoding';
+import { OutputData } from '@editorjs/editorjs';
+import EditorJSComponent from '@/components/EditorJSComponent';
 
 interface TeamMemberFormProps {
   memberId?: string;
 }
+type AdminDocumentField =
+  | 'identity_card_url'
+  | 'cerfa_14997_04_url'
+  | 'commune_attachment_proof_url';
+
+const EMPTY_EDITOR_DATA: OutputData = {
+  time: Date.now(),
+  blocks: [],
+  version: '2.28.0',
+};
+
+const parseBioToEditorData = (bio: string | null | undefined): OutputData => {
+  if (!bio || !bio.trim()) return { ...EMPTY_EDITOR_DATA, time: Date.now() };
+  try {
+    const parsed = JSON.parse(bio);
+    if (parsed && typeof parsed === 'object' && Array.isArray(parsed.blocks)) {
+      return parsed as OutputData;
+    }
+  } catch {
+    // fallback texte simple
+  }
+  return {
+    time: Date.now(),
+    blocks: [{ type: 'paragraph', data: { text: bio } }],
+    version: '2.28.0',
+  };
+};
+
+const ADMIN_DOCUMENTS_BUCKET = 'team-member-documents';
+
+const ADMIN_DOCUMENT_FIELDS = [
+  {
+    key: 'identity_card_url' as const,
+    label: "Carte d'identité",
+  },
+  {
+    key: 'cerfa_14997_04_url' as const,
+    label: 'Cerfa 14997-04',
+  },
+  {
+    key: 'commune_attachment_proof_url' as const,
+    label: "Preuve d'attache avec la commune",
+  },
+];
 
 const TeamMemberForm = ({ memberId }: TeamMemberFormProps) => {
   const navigate = useNavigate();
@@ -31,6 +77,8 @@ const TeamMemberForm = ({ memberId }: TeamMemberFormProps) => {
   const [geocoding, setGeocoding] = useState(false);
   const [geocodingResult, setGeocodingResult] = useState<{ formattedAddress: string; latitude: number; longitude: number } | null>(null);
   const [geocodingError, setGeocodingError] = useState<string | null>(null);
+  const [dragOverField, setDragOverField] = useState<AdminDocumentField | null>(null);
+  const [bioContent, setBioContent] = useState<OutputData>({ ...EMPTY_EDITOR_DATA });
   const [formData, setFormData] = useState<Partial<TeamMember>>({
     name: '',
     role: '',
@@ -40,6 +88,9 @@ const TeamMemberForm = ({ memberId }: TeamMemberFormProps) => {
     email: '',
     phone: '',
     national_elector_number: '',
+    identity_card_url: null,
+    cerfa_14997_04_url: null,
+    commune_attachment_proof_url: null,
     gender: null,
     birth_date: null,
     is_board_member: false,
@@ -124,6 +175,7 @@ const TeamMemberForm = ({ memberId }: TeamMemberFormProps) => {
 
       if (error) throw error;
       setFormData(data);
+      setBioContent(parseBioToEditorData(data.bio));
     } catch (error) {
       console.error('Erreur lors de la récupération du membre:', error);
       toast({
@@ -205,6 +257,100 @@ const TeamMemberForm = ({ memberId }: TeamMemberFormProps) => {
     setFormData({ ...formData, image: '' });
   };
 
+  const uploadAdminDocumentFile = async (
+    file: File,
+    field: AdminDocumentField
+  ) => {
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      if (formData[field]) {
+        const oldPath = formData[field];
+        if (oldPath) {
+          await supabase.storage.from(ADMIN_DOCUMENTS_BUCKET).remove([oldPath]);
+        }
+      }
+
+      const fileExt = file.name.split('.').pop();
+      const safeMemberId = memberId || 'draft';
+      const fileName = `${safeMemberId}/${field}/${Date.now()}-${Math.random()
+        .toString(36)
+        .substring(2)}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from(ADMIN_DOCUMENTS_BUCKET)
+        .upload(fileName, file, { upsert: true });
+      if (uploadError) throw uploadError;
+
+      setFormData((prev) => ({ ...prev, [field]: fileName }));
+
+      toast({
+        title: 'Document téléchargé',
+        description: 'Le document a été enregistré.',
+      });
+    } catch (error) {
+      console.error('Erreur lors du téléchargement du document:', error);
+      toast({
+        title: 'Erreur',
+        description: 'Impossible de téléverser le document.',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploading(false);
+      setDragOverField(null);
+    }
+  };
+
+  const uploadAdminDocument = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    field: AdminDocumentField
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await uploadAdminDocumentFile(file, field);
+    e.target.value = '';
+  };
+
+  const removeAdminDocument = (
+    field: AdminDocumentField
+  ) => {
+    setFormData((prev) => ({ ...prev, [field]: null }));
+  };
+
+  const handleDocumentDrop = async (
+    e: React.DragEvent<HTMLDivElement>,
+    field: AdminDocumentField
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverField(null);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    await uploadAdminDocumentFile(file, field);
+  };
+
+  const openAdminDocument = async (path: string) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from(ADMIN_DOCUMENTS_BUCKET)
+        .createSignedUrl(path, 60);
+      if (error) throw error;
+      window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      console.error("Erreur lors de l'ouverture du document:", error);
+      toast({
+        title: 'Erreur',
+        description: "Impossible d'ouvrir le document.",
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleBioChange = useCallback((data: OutputData) => {
+    setBioContent(data);
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -218,6 +364,9 @@ const TeamMemberForm = ({ memberId }: TeamMemberFormProps) => {
       return;
     }
 
+    const serializedBio =
+      bioContent.blocks.length > 0 ? JSON.stringify(bioContent) : null;
+
     setLoading(true);
     try {
       if (memberId) {
@@ -226,11 +375,14 @@ const TeamMemberForm = ({ memberId }: TeamMemberFormProps) => {
           name: formData.name,
           role: formData.role || null,
           profession: formData.profession || null,
-          bio: formData.bio || null,
+          bio: serializedBio,
           image: formData.image || null,
           email: formData.email || null,
           phone: formData.phone || null,
           national_elector_number: formData.national_elector_number || null,
+          identity_card_url: formData.identity_card_url || null,
+          cerfa_14997_04_url: formData.cerfa_14997_04_url || null,
+          commune_attachment_proof_url: formData.commune_attachment_proof_url || null,
           gender: formData.gender || null,
           birth_date: formData.birth_date || null,
           is_board_member: formData.is_board_member,
@@ -260,11 +412,14 @@ const TeamMemberForm = ({ memberId }: TeamMemberFormProps) => {
           name: formData.name!,
           role: formData.role || null,
           profession: formData.profession || null,
-          bio: formData.bio || null,
+          bio: serializedBio,
           image: formData.image || null,
           email: formData.email || null,
           phone: formData.phone || null,
           national_elector_number: formData.national_elector_number || null,
+          identity_card_url: formData.identity_card_url || null,
+          cerfa_14997_04_url: formData.cerfa_14997_04_url || null,
+          commune_attachment_proof_url: formData.commune_attachment_proof_url || null,
           gender: formData.gender || null,
           birth_date: formData.birth_date || null,
           is_board_member: formData.is_board_member || false,
@@ -376,7 +531,7 @@ const TeamMemberForm = ({ memberId }: TeamMemberFormProps) => {
                   }
                 />
                 <p className="text-sm text-muted-foreground mt-1">
-                  Obligatoire pour être sur la liste électorale (18 ans minimum)
+                  Optionnelle. L'âge est utilisé comme critère de conformité dans l'analyse.
                 </p>
               </div>
 
@@ -637,16 +792,105 @@ const TeamMemberForm = ({ memberId }: TeamMemberFormProps) => {
 
               <div>
                 <Label htmlFor="bio">Biographie</Label>
-                <Textarea
-                  id="bio"
-                  value={formData.bio}
-                  onChange={(e) =>
-                    setFormData({ ...formData, bio: e.target.value })
-                  }
-                  placeholder="Présentez-vous en quelques mots..."
-                  rows={5}
-                />
+                <div className="mt-2">
+                  <EditorJSComponent
+                    value={bioContent}
+                    onChange={handleBioChange}
+                    placeholder="Présentez-vous en quelques mots... (gras, italique, listes...)"
+                    className="max-h-[500px]"
+                  />
+                </div>
               </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Démarches administratives</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {ADMIN_DOCUMENT_FIELDS.map((doc) => {
+                const currentPath = formData[doc.key];
+
+                return (
+                  <div
+                    key={doc.key}
+                    className={`rounded-lg border p-4 space-y-3 transition-colors ${
+                      dragOverField === doc.key ? 'border-brand bg-brand/5' : ''
+                    }`}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setDragOverField(doc.key);
+                    }}
+                    onDragEnter={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setDragOverField(doc.key);
+                    }}
+                    onDragLeave={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setDragOverField((prev) => (prev === doc.key ? null : prev));
+                    }}
+                    onDrop={(e) => handleDocumentDrop(e, doc.key)}
+                  >
+                    <div className="flex items-center gap-2">
+                      {currentPath ? (
+                        <CircleCheck className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <CircleX className="h-4 w-4 text-red-600" />
+                      )}
+                      <Label className="text-sm font-medium">{doc.label}</Label>
+                    </div>
+
+                    {currentPath ? (
+                      <div className="flex items-center justify-between gap-2">
+                        <button
+                          type="button"
+                          onClick={() => openAdminDocument(currentPath)}
+                          className="text-sm text-brand underline truncate text-left"
+                        >
+                          {currentPath.split('/').pop() || 'Voir le document'}
+                        </button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => removeAdminDocument(doc.key)}
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          Retirer
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="text-xs text-muted-foreground">
+                        Aucun document téléversé
+                      </div>
+                    )}
+
+                    <div>
+                      <Label
+                        htmlFor={`upload-${doc.key}`}
+                        className="inline-flex items-center gap-2 cursor-pointer text-sm text-brand hover:text-brand/80"
+                      >
+                        <FileText className="h-4 w-4" />
+                        Téléverser
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Glissez-deposez un fichier ici ou cliquez sur "Televerser".
+                      </p>
+                      <Input
+                        id={`upload-${doc.key}`}
+                        type="file"
+                        accept=".pdf,.png,.jpg,.jpeg,.webp"
+                        onChange={(e) => uploadAdminDocument(e, doc.key)}
+                        className="hidden"
+                        disabled={uploading}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
             </CardContent>
           </Card>
         </div>

@@ -106,7 +106,7 @@ const Values = () => {
                 <div className="text-center mb-8">
                   <h2 className="text-2xl font-semibold mb-4">Vous partagez nos valeurs et notre envie d'agir ?</h2>
                   <p className="text-brand-700 max-w-2xl mx-auto">
-                    Rejoignez un collectif ouvert à tous, où chaque voix compte. Ensemble, nous pouvons faire de Gétigné une commune où il fait bon vivre, aujourd'hui et pour les générations futures.
+                    Rejoignez un collectif ouvert à tous, où chaque voix compte. Ensemble, nous pouvons faire de {settings.branding.city} une commune où il fait bon vivre, aujourd'hui et pour les générations futures.
                   </p>
                 </div>
 

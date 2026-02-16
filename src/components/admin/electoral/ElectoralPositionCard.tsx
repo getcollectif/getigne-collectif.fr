@@ -3,7 +3,8 @@ import { useDraggable } from '@dnd-kit/core';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { X, Edit, User } from 'lucide-react';
+import { X, Edit, User, CircleCheck, CircleX } from 'lucide-react';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import type {
   ElectoralPosition,
   ElectoralListMemberWithDetails,
@@ -126,6 +127,64 @@ const ElectoralPositionCard = ({
   };
 
   const age = calculateAge(displayMember.team_member.birth_date);
+  const fullName = displayMember.team_member.name?.trim() || '';
+  const [firstName = fullName, ...lastNameParts] = fullName.split(/\s+/);
+  const lastName = lastNameParts.join(' ');
+  const extractText = (value: string): string =>
+    value.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+  const hasFilledBio = (bio: string | null | undefined): boolean => {
+    if (!bio || !bio.trim()) return false;
+    try {
+      const parsed = JSON.parse(bio) as { blocks?: Array<{ type?: string; data?: Record<string, unknown> }> };
+      if (!parsed?.blocks || !Array.isArray(parsed.blocks)) return extractText(bio).length > 0;
+      return parsed.blocks.some((block) => {
+        const data = block?.data ?? {};
+        const textValues = [
+          data.text,
+          data.caption,
+          data.code,
+          data.message,
+          data.title,
+        ]
+          .filter((v): v is string => typeof v === 'string')
+          .map(extractText)
+          .filter(Boolean);
+        if (textValues.length > 0) return true;
+
+        const listItems = data.items;
+        if (Array.isArray(listItems)) {
+          return listItems.some((item) => {
+            if (typeof item === 'string') return extractText(item).length > 0;
+            if (item && typeof item === 'object' && 'text' in item && typeof item.text === 'string') {
+              return extractText(item.text).length > 0;
+            }
+            if (item && typeof item === 'object' && 'content' in item && typeof item.content === 'string') {
+              return extractText(item.content).length > 0;
+            }
+            return false;
+          });
+        }
+        return false;
+      });
+    } catch {
+      return extractText(bio).length > 0;
+    }
+  };
+
+  const missingItems: string[] = [];
+  if (!displayMember.team_member.identity_card_url) {
+    missingItems.push("Carte d'identité");
+  }
+  if (!displayMember.team_member.cerfa_14997_04_url) {
+    missingItems.push('Cerfa 14997-04');
+  }
+  if (!displayMember.team_member.commune_attachment_proof_url) {
+    missingItems.push("Preuve d'attache avec la commune");
+  }
+  if (!hasFilledBio(displayMember.team_member.bio)) {
+    missingItems.push('Biographie');
+  }
+  const isAdministrativeComplete = missingItems.length === 0;
 
   // Déterminer la surbrillance selon le niveau d'engagement max
   const getEngagementHighlight = () => {
@@ -253,7 +312,37 @@ const ElectoralPositionCard = ({
               {/* Overlay avec nom et profession */}
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/60 to-transparent p-4 pt-8">
                 <h3 className="font-bold text-xl text-white mb-1 line-clamp-2">
-                  {displayMember.team_member.name}
+                  <span className="inline-flex items-center gap-2">
+                    <HoverCard openDelay={120}>
+                      <HoverCardTrigger asChild>
+                        <span className="inline-flex">
+                          {isAdministrativeComplete ? (
+                            <CircleCheck className="h-5 w-5 text-green-400 shrink-0" />
+                          ) : (
+                            <CircleX className="h-5 w-5 text-red-400 shrink-0" />
+                          )}
+                        </span>
+                      </HoverCardTrigger>
+                      <HoverCardContent side="top" align="start" className="w-80">
+                        {isAdministrativeComplete ? (
+                          <p className="text-sm font-medium text-green-700">
+                            Dossier administratif complet.
+                          </p>
+                        ) : (
+                          <div className="space-y-2">
+                            <p className="text-sm font-medium">Elements manquants :</p>
+                            <ul className="list-disc pl-5 text-sm space-y-1">
+                              {missingItems.map((item) => (
+                                <li key={item}>{item}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </HoverCardContent>
+                    </HoverCard>
+                    <span>{firstName}</span>
+                  </span>
+                  {lastName ? <span>{` ${lastName}`}</span> : null}
                 </h3>
                 <p className="text-sm text-white/90 mb-1">
                   <small className="text-sm text-white/90">{age !== null && `${age} ans `}</small>

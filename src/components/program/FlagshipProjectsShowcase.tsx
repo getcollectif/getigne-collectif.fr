@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import CommentCountBadge from '@/components/comments/CommentCountBadge';
 import { getUnreadCommentCount } from '@/utils/commentViews';
 import { useAuth } from '@/context/auth';
+import { useAppSettings } from '@/hooks/useAppSettings';
 
 interface FlagshipProjectsShowcaseProps {
   projects: ProgramFlagshipProject[];
@@ -309,6 +310,7 @@ function ProjectSection({ project, index, isProgramAdmin, onEditProject }: Proje
 }
 
 export default function FlagshipProjectsShowcase({ projects, isProgramAdmin, onEditProject }: FlagshipProjectsShowcaseProps) {
+  const { settings } = useAppSettings();
   const sectionRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const [showSticky, setShowSticky] = useState(false);
@@ -369,7 +371,7 @@ export default function FlagshipProjectsShowcase({ projects, isProgramAdmin, onE
               Trois projets phares pour l'avenir
             </h2>
             <p className="text-base md:text-lg lg:text-xl text-white/90 max-w-3xl mx-auto px-4">
-              Des initiatives ambitieuses et concrètes pour transformer Gétigné et améliorer la vie de toutes et tous.
+              Des initiatives ambitieuses et concrètes pour transformer {settings.branding.city} et améliorer la vie de toutes et tous.
             </p>
           </div>
         </div>

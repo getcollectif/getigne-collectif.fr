@@ -73,6 +73,7 @@ export default function SettingsForm() {
   };
 
   const uploadImage = async (file: File) => {
+    const bucketName = 'site-assets';
     const fileExt = file.name.split('.').pop();
     const fileName = `${crypto.randomUUID()}.${fileExt}`;
     const filePath = `site/${fileName}`;
@@ -80,12 +81,12 @@ export default function SettingsForm() {
     setIsUploading(true);
     try {
       const { error: uploadError } = await supabase.storage
-        .from('site-assets')
+        .from(bucketName)
         .upload(filePath, file, { upsert: true });
       if (uploadError) throw uploadError;
 
       const { data } = supabase.storage
-        .from('site-assets')
+        .from(bucketName)
         .getPublicUrl(filePath);
 
       return data.publicUrl;
@@ -173,6 +174,80 @@ export default function SettingsForm() {
                         disabled={isUploading}
                         onChange={async (event) => {
                           const file = event.target.files?.[0];
+                          if (!file) return;
+                          const url = await uploadImage(file);
+                          field.onChange(url);
+                        }}
+                      />
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="branding.faviconUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Favicon (onglet navigateur)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Vide = logo principal" {...field} value={field.value ?? ''} />
+                    </FormControl>
+                    <FormDescription>Optionnel. Sinon, le logo principal est utilisé.</FormDescription>
+                    {(field.value || settings.branding.logoUrl) && (
+                      <div className="mt-3">
+                        <img
+                          src={field.value || settings.branding.logoUrl}
+                          alt="Favicon"
+                          className="h-8 w-8 rounded border border-muted bg-white object-contain"
+                          loading="lazy"
+                        />
+                      </div>
+                    )}
+                    <div className="mt-2">
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        disabled={isUploading}
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const url = await uploadImage(file);
+                          field.onChange(url);
+                        }}
+                      />
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="branding.footerLogoUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Logo du pied de page</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Vide = logo principal" {...field} value={field.value ?? ''} />
+                    </FormControl>
+                    <FormDescription>Optionnel. Sinon, le logo principal est utilisé.</FormDescription>
+                    {(field.value || settings.branding.logoUrl) && (
+                      <div className="mt-3">
+                        <img
+                          src={field.value || settings.branding.logoUrl}
+                          alt="Logo footer"
+                          className="h-12 w-auto rounded border border-muted bg-white object-contain"
+                          loading="lazy"
+                        />
+                      </div>
+                    )}
+                    <div className="mt-2">
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        disabled={isUploading}
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
                           if (!file) return;
                           const url = await uploadImage(file);
                           field.onChange(url);
