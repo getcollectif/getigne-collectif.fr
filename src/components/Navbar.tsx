@@ -337,6 +337,17 @@ const Navbar = () => {
                         <SupportButton className="w-full py-6 text-lg" />
                       </li>
                     )}
+                    {!user && (
+                      <li>
+                        <Link
+                          to={Routes.AUTH}
+                          className={`flex items-center gap-2 py-2 ${isActive(Routes.AUTH)}`}
+                          onClick={() => setIsOpen(false)}
+                        >
+                          Se connecter
+                        </Link>
+                      </li>
+                    )}
                     <UserMenuLinks onNavigate={() => setIsOpen(false)} />
                   </ul>
                 </nav>
